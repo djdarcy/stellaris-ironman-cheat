@@ -1,4 +1,4 @@
-"""Shared test fixtures for $PROJECT_NAME."""
+"""Shared test fixtures for stellaris-ironman-cheat."""
 
 import pytest
 from pathlib import Path

@@ -20,13 +20,13 @@
 ## Installation
 
 ```bash
-pip install $PACKAGE_NAME
+pip install stellaris_ironman_cheat
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/$GITHUB_ORG/$PROJECT_NAME.git
-cd $PROJECT_NAME
+git clone https://github.com/djdarcy/stellaris-ironman-cheat.git
+cd stellaris-ironman-cheat
 pip install -e .
 ```
 

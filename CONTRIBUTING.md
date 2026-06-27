@@ -1,6 +1,6 @@
-# Contributing to $PROJECT_NAME
+# Contributing to stellaris-ironman-cheat
 
-Thank you for considering contributing to $PROJECT_NAME!
+Thank you for considering contributing to stellaris-ironman-cheat!
 
 ## Development Setup
 
@@ -12,8 +12,8 @@ Thank you for considering contributing to $PROJECT_NAME!
 ### Clone and Install
 
 ```bash
-git clone https://github.com/$GITHUB_ORG/$PROJECT_NAME.git
-cd $PROJECT_NAME
+git clone https://github.com/djdarcy/stellaris-ironman-cheat.git
+cd stellaris-ironman-cheat
 python -m venv .venv
 source .venv/bin/activate        # Linux/Mac
 # or: .venv\Scripts\activate     # Windows
@@ -29,9 +29,9 @@ python -m pytest tests/ -v
 ## Project Structure
 
 ```
-$PACKAGE_NAME/
+stellaris_ironman_cheat/
   __init__.py         # Package initialization
-  __main__.py         # CLI entry (python -m $PACKAGE_NAME)
+  __main__.py         # CLI entry (python -m stellaris_ironman_cheat)
   _version.py         # Version (PEP 440)
 tests/
   conftest.py         # Shared fixtures

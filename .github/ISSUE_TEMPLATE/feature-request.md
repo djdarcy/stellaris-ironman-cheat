@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for $PROJECT_NAME
+about: Suggest an idea for stellaris-ironman-cheat
 title: "[FEATURE] "
 labels: enhancement
 assignees: ''
