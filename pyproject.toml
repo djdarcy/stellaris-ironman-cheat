@@ -5,25 +5,37 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stellaris-ironman-cheat"
 dynamic = ["version"]
-description = "A new project created from git-repokit-template"
+description = "Toggle Ironman mode on/off in Stellaris .sav files -- a single-file, dependency-free Python CLI."
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 authors = [
-    {name = "djdarcy", email = "djdarcy@users.noreply.github.com"},
+    {name = "Dustin Darcy", email = "6962246+djdarcy@users.noreply.github.com"},
 ]
-keywords = []
+keywords = [
+    "stellaris",
+    "paradox",
+    "save-editor",
+    "savegame",
+    "ironman",
+    "cli",
+    "modding",
+    "game-tools",
+]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
-    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
     "Topic :: Utilities",
 ]
 
@@ -41,14 +53,13 @@ Repository = "https://github.com/djdarcy/stellaris-ironman-cheat"
 Issues = "https://github.com/djdarcy/stellaris-ironman-cheat/issues"
 
 [project.scripts]
-stellaris-ironman-cheat = "stellaris_ironman_cheat.cli:main"
+stellaris-ironman = "stellaris_ironman:main"
+
+[tool.setuptools]
+py-modules = ["stellaris_ironman"]
 
 [tool.setuptools.dynamic]
-version = {attr = "stellaris_ironman_cheat._version.PIP_VERSION"}
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["stellaris_ironman_cheat", "stellaris_ironman_cheat.*"]
+version = {attr = "stellaris_ironman.PIP_VERSION"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -57,7 +68,7 @@ python_functions = "test_*"
 python_classes = "Test*"
 
 [tool.repokit-common]
-version-source = "stellaris_ironman_cheat/_version.py"
+version-source = "stellaris_ironman.py"
 changelog = "CHANGELOG.md"
 repo-url = "https://github.com/djdarcy/stellaris-ironman-cheat"
 tag-prefix = "v"

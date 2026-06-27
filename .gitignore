@@ -148,6 +148,12 @@ docs/images/bak/
 *.exe
 *.obj
 
+# Stellaris saves and backups -- never commit personal/large save files
+*.sav
+*.sav.bak
+# Local test scratch dir used during development
+tooltest/
+
 # Project-specific runtime files
 # (add project-specific ignores here)
 

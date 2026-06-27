@@ -1,6 +1,6 @@
 """Tests for version module."""
 
-from stellaris_ironman_cheat._version import (
+from stellaris_ironman import (
     MAJOR, MINOR, PATCH, PHASE, PROJECT_PHASE,
     get_version, get_base_version, get_display_version, get_pip_version,
     __app_name__,

@@ -6,9 +6,9 @@
   "language": "python",
   "branch_strategy": "minimal",
   "private_branch": "private",
-  "description": "A new project created from git-repokit-template",
+  "description": "Toggle Ironman mode on/off in Stellaris .sav files (single-file Python CLI).",
   "author": {
-    "name": "djdarcy",
-    "email": "djdarcy@users.noreply.github.com"
+    "name": "Dustin Darcy",
+    "email": "6962246+djdarcy@users.noreply.github.com"
   }
 }

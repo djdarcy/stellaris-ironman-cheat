@@ -1,16 +1,15 @@
-name: Publish to PyPI
+name: Build Release Artifacts
 
-# Triggered when a GitHub Release is PUBLISHED -- not on tag push. This makes
-# "publish a release" the single deliberate ship action: force-moving or
-# re-pushing a tag (e.g. amending a released commit) never re-fires PyPI, so
-# we don't get spurious "400 File already exists" failures. The release event
-# checks out the release's tag, so the right version is built.
+# Triggered when a GitHub Release is PUBLISHED -- not on tag push. This project
+# is distributed via GitHub only (no PyPI), so this workflow just builds and
+# validates the sdist/wheel and attaches them as workflow artifacts for the
+# release. If PyPI publishing is added later, restore a `publish` job that keys
+# off this build (see git-repokit-template for the trusted-publisher pattern).
 on:
   release:
     types: [published]
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -44,20 +43,3 @@ jobs:
       with:
         name: dist
         path: dist/
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: pypi
-
-    permissions:
-      id-token: write
-
-    steps:
-    - uses: actions/download-artifact@v8
-      with:
-        name: dist
-        path: dist/
-
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
