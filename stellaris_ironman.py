@@ -50,12 +50,12 @@ import zipfile
 # --------------------------------------------------------------------------- #
 MAJOR = 0
 MINOR = 1
-PATCH = 0
-PHASE = ""  # "" (stable), "alpha", "beta", "rc1", ...
+PATCH = 1
+PHASE = ""  # Per-MINOR feature set: None, "alpha", "beta", "rc1", etc.
 PROJECT_PHASE = ""  # "prealpha", "alpha", "beta", "stable", or ""
 
 # Auto-updated by git hooks -- do not edit manually.
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __app_name__ = "stellaris-ironman-cheat"
 
 
@@ -173,51 +173,102 @@ def describe_save(names, data) -> dict:
     return {n: entry_state(data[n]) for n in present}
 
 
-def aggregate_state(states: dict) -> str:
-    """Collapse per-entry states into one of on/off/absent/mixed."""
-    vals = set(states.values())
-    if not vals:
-        return "absent"
-    if vals == {ON}:
+def overall_state(states: dict) -> str:
+    """Overall ironman state, treating `gamestate` as authoritative.
+
+    A non-Ironman save carries `ironman=no` in gamestate and OMITS the flag
+    from meta entirely, so meta being "absent" is normal and reads as OFF.
+    """
+    gs = states.get("gamestate")
+    if gs in (ON, OFF):
+        return gs
+    mt = states.get("meta")
+    if mt == ON:
         return ON
-    if vals == {OFF}:
+    if mt in (OFF, "absent"):
         return OFF
     return "mixed"
 
 
-def apply_target(names, data, target: str) -> int:
-    """Flip flag-bearing entries to `target` (ON/OFF). Returns #entries changed.
+def set_entry_flag(name: str, data: bytes, target: str):
+    """Return (new_bytes, changed) bringing one entry to `target` (ON/OFF).
 
-    Aborts (raises) if any flag-bearing entry is absent or in a "mixed" state,
-    since blindly editing those risks corrupting the save.
+    Stellaris writes the flag asymmetrically: an Ironman save has `ironman=yes`
+    in BOTH gamestate and meta; a non-Ironman save has `ironman=no` in gamestate
+    and no `ironman` line in meta at all. So:
+
+    * flag present  -> flip in place (yes <-> no);
+    * meta missing the flag + enabling -> append `ironman=yes` (matches the
+      Ironman meta layout: a final top-level line);
+    * meta missing the flag + disabling -> leave it absent (already non-Ironman);
+    * gamestate missing the flag, or a "mixed" entry -> refuse (can't safely
+      place/parse it).
     """
-    src_tok, dst_tok = (YES, NO) if target == OFF else (NO, YES)
+    st = entry_state(data)
+    if st == "mixed":
+        raise ValueError(
+            f"unexpected ironman flag layout in '{name}' "
+            f"({data.count(YES)}x yes, {data.count(NO)}x no) -- refusing to edit"
+        )
+    if st == target:
+        return data, False  # already at the desired token
+    if st in (ON, OFF):  # has the opposite token -> flip in place
+        src, dst = (YES, NO) if target == OFF else (NO, YES)
+        return data.replace(src, dst), True
+    # st == "absent"
+    if target == ON:
+        if name == "meta":
+            sep = b"" if data.endswith(b"\n") else b"\n"
+            return data + sep + YES + b"\n", True
+        raise ValueError(
+            f"no ironman flag in '{name}' and it can't be safely added there"
+        )
+    # target == OFF and the flag is absent
+    if name == "meta":
+        return data, False  # absent meta == already non-Ironman
+    raise ValueError(
+        f"no ironman flag found in '{name}' -- is this a Stellaris save?"
+    )
+
+
+def apply_target(names, data, target: str) -> int:
+    """Bring all flag-bearing entries to `target`. Returns #entries changed.
+
+    Mutates `data` (a {name: bytes} dict). Raises on a missing entry, a "mixed"
+    entry, or a gamestate with no flag.
+    """
     changed = 0
     for name in FLAG_ENTRIES:
         if name not in data:
             raise ValueError(f"entry '{name}' is missing from the save")
-        st = entry_state(data[name])
-        if st == "absent":
-            raise ValueError(
-                f"no ironman flag found in '{name}' -- is this a Stellaris save?"
-            )
-        if st == "mixed":
-            raise ValueError(
-                f"unexpected ironman flag layout in '{name}' "
-                f"({data[name].count(YES)}x yes, {data[name].count(NO)}x no) "
-                "-- refusing to edit"
-            )
-        if st == target:
-            continue  # already in the desired state
-        data[name] = data[name].replace(src_tok, dst_tok)
-        changed += 1
+        new, did = set_entry_flag(name, data[name], target)
+        if did:
+            data[name] = new
+            changed += 1
     return changed
 
 
 def verify_target(path: str, target: str) -> bool:
-    """Re-open a written save and confirm every flag entry is at `target`."""
+    """Re-open a written save and confirm it reached `target`.
+
+    For ON, every entry must read `ironman=yes`. For OFF, gamestate must read
+    `ironman=no` while meta may read `ironman=no` OR be absent (both load as
+    non-Ironman).
+    """
     _, _, data = load_zip(path)
-    return all(entry_state(data[n]) == target for n in FLAG_ENTRIES if n in data)
+    for n in FLAG_ENTRIES:
+        if n not in data:
+            continue
+        st = entry_state(data[n])
+        if target == ON:
+            if st != ON:
+                return False
+        elif n == "meta":
+            if st not in (OFF, "absent"):
+                return False
+        elif st != OFF:
+            return False
+    return True
 
 
 # --------------------------------------------------------------------------- #
@@ -238,9 +289,10 @@ def default_output(inp: str, target: str) -> str:
 def cmd_status(args) -> int:
     names, _, data = load_zip(args.save)
     states = describe_save(names, data)
-    agg = aggregate_state(states)
+    overall = overall_state(states)
     pretty = {ON: "ON  (ironman=yes)", OFF: "OFF (ironman=no)",
-              "absent": "absent", "mixed": "MIXED"}
+              "absent": "absent (no ironman line -- normal for non-Ironman saves)",
+              "mixed": "MIXED"}
     print(f"Save:    {args.save}")
     print(f"Entries: {names}")
     for n in FLAG_ENTRIES:
@@ -248,9 +300,10 @@ def cmd_status(args) -> int:
             print(f"  {n:<10} ironman {pretty[states[n]]}")
         else:
             print(f"  {n:<10} (entry not present)")
-    print(f"Overall: ironman {pretty.get(agg, agg)}")
-    if agg == "mixed":
-        eprint("WARNING: gamestate and meta disagree -- run disable/enable to normalize.")
+    print(f"Overall: ironman {pretty.get(overall, overall)}")
+    gs, mt = states.get("gamestate"), states.get("meta")
+    if (gs == ON and mt not in (ON, None)) or (gs == OFF and mt == ON):
+        eprint("WARNING: gamestate and meta disagree -- run enable/disable to normalize.")
     return 0
 
 
@@ -258,13 +311,16 @@ def _set_state(args, target: str) -> int:
     inp = args.save
     names, infos, data = load_zip(inp)
 
-    states = describe_save(names, data)
-    agg = aggregate_state(states)
     verb = "disable" if target == OFF else "enable"
+    done = "disabled" if target == OFF else "enabled"
 
-    if agg == target:
-        print(f"Already {('disabled' if target == OFF else 'enabled')}: "
-              f"ironman is {'OFF' if target == OFF else 'ON'} in {inp}. Nothing to do.")
+    # Plan the change on a working copy (also validates -> raises on bad input).
+    work = dict(data)
+    changed = apply_target(names, work, target)
+
+    if changed == 0:
+        print(f"Already {done}: ironman is {'OFF' if target == OFF else 'ON'} "
+              f"in {inp}. Nothing to do.")
         return 0
 
     # Decide where to write.
@@ -274,11 +330,6 @@ def _set_state(args, target: str) -> int:
         out = args.output
     else:
         out = default_output(inp, target)
-
-    # Plan the change on an in-memory copy.
-    changed = apply_target(names, dict(data), target)  # validate first (raises on bad)
-    # Re-apply to the real dict now that validation passed.
-    changed = apply_target(names, data, target)
 
     if args.dry_run:
         print(f"[dry-run] would {verb} ironman in {inp}")
@@ -306,13 +357,13 @@ def _set_state(args, target: str) -> int:
             eprint(f"ERROR: output already exists: {out} (use --force to overwrite).")
             return 2
 
-    write_zip(out, names, infos, data)
+    write_zip(out, names, infos, work)
 
     if not verify_target(out, target):
         eprint(f"ERROR: verification failed -- {out} is not in the expected state.")
         return 3
 
-    print(f"OK: ironman {'disabled' if target == OFF else 'enabled'} -> {out}")
+    print(f"OK: ironman {done} -> {out}")
     print(f"    ({changed} entr{'y' if changed == 1 else 'ies'} changed, "
           "format verified)")
     if target == OFF:
@@ -330,12 +381,12 @@ def cmd_enable(args) -> int:
 
 def cmd_toggle(args) -> int:
     names, _, data = load_zip(args.save)
-    agg = aggregate_state(describe_save(names, data))
-    if agg == ON:
+    state = overall_state(describe_save(names, data))
+    if state == ON:
         return _set_state(args, OFF)
-    if agg == OFF:
+    if state == OFF:
         return _set_state(args, ON)
-    eprint(f"ERROR: cannot toggle -- current state is '{agg}'. "
+    eprint(f"ERROR: cannot toggle -- current state is '{state}'. "
            "Use disable/enable explicitly.")
     return 2
 

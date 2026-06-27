@@ -14,7 +14,7 @@ It is a single Python file with **no dependencies** beyond the standard library,
 
 ## Why this exists
 
-Ironman mode disables the console and most save editing. The usual way to "cheat" in an Ironman game is to turn Ironman off, do what you need in a normal game, and (optionally) turn it back on. Doing that by hand means unzipping the save, editing two files with a very particular text editor, and re-zipping with very particular settings — get it slightly wrong and Stellaris refuses to load the save. This tool does the same edit reliably and keeps the archive in exactly the layout the game expects.
+Ironman mode disables the console and most save editing. The usual way to "cheat" in an Ironman game is to turn Ironman off, do what you need in a normal game, and (optionally) turn it back on. Doing that by hand means unzipping the save, editing two files with a very particular text editor, and re-zipping with very particular settings -- get it slightly wrong and Stellaris refuses to load the save. This tool does the same edit reliably and keeps the archive in exactly the layout the game expects.
 
 ## How a Stellaris save works
 
@@ -23,11 +23,11 @@ A `.sav` file is actually a ZIP archive containing two text entries:
 - `gamestate` — the entire game (large)
 - `meta` — the small header the save browser reads (empire name, date, DLC list, flag)
 
-Each of those carries a single `ironman=yes` or `ironman=no` line. This tool flips that line in **both** entries, then writes the archive back with the original entry order and per-entry Deflate compression preserved — which is what makes the result load cleanly. It edits raw bytes (never re-encodes text), so empire and system names with non-ASCII characters are left exactly as they were. After writing, it re-opens the file and verifies the flag landed correctly. It does **not** touch checksums, achievements, or anything else — Stellaris saves are not tamper-protected, which is why this works.
+Each carries an `ironman=yes` / `ironman=no` line, except non-Ironman saves omit the flag from `meta` entirely (it lives only in `gamestate`). This tool brings **both** entries to the target state: it flips the line in place where present, and when enabling a save whose `meta` has no flag it appends `ironman=yes` as a final line (matching how Stellaris writes Ironman saves). It then writes the archive back with the original entry order and per-entry Deflate compression preserved. This is what makes the result load properly. It edits raw bytes (never re-encodes text), so empire and system names with non-ASCII characters are left exactly as they were. After writing, it re-opens the file and verifies the flag landed correctly. It does **not** touch checksums, achievements, or anything else -- Stellaris saves are not tamper-protected, which is (theoretically) why this should work.
 
 ## Install
 
-No install is required — it is one file:
+No install is required -- it is one file:
 
 ```bash
 git clone https://github.com/djdarcy/stellaris-ironman-cheat.git
@@ -53,7 +53,7 @@ stellaris-ironman enable  <save.sav>
 stellaris-ironman toggle  <save.sav>
 ```
 
-By default, **the original file is never changed** — a new file is written next to it (`save.noironman.sav` for disable, `save.ironman.sav` for enable). Examples:
+By default, **the original file is never changed** -- a new file is written next to it (`save.noironman.sav` for disable, `save.ironman.sav` for enable). Examples:
 
 ```bash
 # See what state a save is in

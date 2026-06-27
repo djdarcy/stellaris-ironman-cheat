@@ -12,13 +12,21 @@ import pytest
 import stellaris_ironman as si
 
 
-def make_save(path, state="on", order=("gamestate", "meta"),
+def make_save(path, state="on", meta_flag=True, order=("gamestate", "meta"),
               method=zipfile.ZIP_DEFLATED):
-    """Write a synthetic Stellaris-like save and return its raw entry bytes."""
+    """Write a synthetic Stellaris-like save and return its raw entry bytes.
+
+    Ironman saves carry the flag in BOTH entries; real non-Ironman saves carry
+    ironman=no in gamestate and OMIT it from meta (set meta_flag=False to model
+    that). meta ends with a top-level key, matching Stellaris layout.
+    """
     flag = b"ironman=yes" if state == "on" else b"ironman=no"
+    meta = b'version="Test"\nname="Synthetic Empire"\nmeta_planets=1\n'
+    if meta_flag:
+        meta += flag + b"\n"
     blobs = {
         "gamestate": b'version="Test"\nname="Synthetic Empire"\n\t' + flag + b"\n",
-        "meta": b'version="Test"\nname="Synthetic Empire"\n' + flag + b"\n",
+        "meta": meta,
     }
     with zipfile.ZipFile(path, "w", compression=method) as z:
         for name in order:
@@ -55,7 +63,7 @@ def test_status_detects_on(tmp_path):
     save = tmp_path / "ironman.sav"
     make_save(save, "on")
     names, _, data = si.load_zip(str(save))
-    assert si.aggregate_state(si.describe_save(names, data)) == si.ON
+    assert si.overall_state(si.describe_save(names, data)) == si.ON
 
 
 # --------------------------------------------------------------------------- #
@@ -120,6 +128,47 @@ def test_overwrite_guard(tmp_path):
     out.write_bytes(b"existing")
     assert si.main(["disable", str(save), "-o", str(out)]) != 0  # refuses
     assert si.main(["disable", str(save), "-o", str(out), "--force"]) == 0
+
+
+# --------------------------------------------------------------------------- #
+# real-world asymmetry: non-Ironman saves omit the flag from meta
+# (regression for: `enable` erroring with "no ironman flag found in 'meta'")
+# --------------------------------------------------------------------------- #
+def test_enable_on_normal_save_appends_meta_flag(tmp_path):
+    save = tmp_path / "2200.01.01 - autosave.sav"
+    make_save(save, state="off", meta_flag=False)  # gamestate=no, meta has no flag
+    assert b"ironman" not in read_entry(str(save), "meta")  # precondition
+    out = tmp_path / "out.sav"
+    assert si.main(["enable", str(save), "-o", str(out)]) == 0
+    assert read_entry(str(out), "gamestate").count(b"ironman=yes") == 1
+    meta = read_entry(str(out), "meta")
+    assert meta.count(b"ironman=yes") == 1
+    assert meta.endswith(b"ironman=yes\n")  # appended as final top-level line
+
+
+def test_disable_on_normal_save_is_noop(tmp_path):
+    save = tmp_path / "normal.sav"
+    make_save(save, state="off", meta_flag=False)  # already non-Ironman
+    out = tmp_path / "out.sav"
+    assert si.main(["disable", str(save), "-o", str(out)]) == 0
+    assert not out.exists()  # nothing to do -> no file written
+
+
+def test_status_normal_save_reads_off(tmp_path):
+    save = tmp_path / "normal.sav"
+    make_save(save, state="off", meta_flag=False)
+    names, _, data = si.load_zip(str(save))
+    states = si.describe_save(names, data)
+    assert states["meta"] == "absent"
+    assert si.overall_state(states) == si.OFF
+
+
+def test_toggle_normal_save_enables(tmp_path):
+    save = tmp_path / "normal.sav"
+    make_save(save, state="off", meta_flag=False)
+    assert si.main(["toggle", str(save), "--in-place", "--no-backup"]) == 0
+    assert read_entry(str(save), "gamestate").count(b"ironman=yes") == 1
+    assert read_entry(str(save), "meta").endswith(b"ironman=yes\n")
 
 
 # --------------------------------------------------------------------------- #

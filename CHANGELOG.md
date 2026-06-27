@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-27
+
+### Fixed
+- `enable` on a normal (non-Ironman) save no longer fails with `no ironman flag found in 'meta'`. Stellaris omits the `ironman` line from `meta` on non-Ironman saves (it lives only in `gamestate`), so `enable` now appends `ironman=yes` to `meta` as a final top-level line and flips `gamestate`.
+- `disable` on an already-non-Ironman save is now a no-op ("nothing to do") instead of erroring on the absent `meta` flag.
+- `status` and `toggle` now treat `gamestate` as authoritative and an absent `meta` flag as normal (reads as OFF) rather than "MIXED".
+
 ## [0.1.0] - 2026-06-27
 
 ### Added
@@ -15,5 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `--version` flag. Single-file, standard-library-only, cross-platform (Windows/macOS/Linux).
 - Test suite built on synthetic saves (round-trip byte-integrity, guards, and CLI), needing neither a real save nor Stellaris installed.
 
-[Unreleased]: https://github.com/djdarcy/stellaris-ironman-cheat/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/djdarcy/stellaris-ironman-cheat/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/djdarcy/stellaris-ironman-cheat/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/djdarcy/stellaris-ironman-cheat/releases/tag/v0.1.0
